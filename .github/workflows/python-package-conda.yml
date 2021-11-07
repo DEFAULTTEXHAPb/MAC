@@ -21,6 +21,9 @@ jobs:
     - name: Install dependencies
       run: |
         conda env update --file environment.yml --name base
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
         pip install cocotb cocotb-test fxpmath
     - name: Lint with flake8
       run: |
