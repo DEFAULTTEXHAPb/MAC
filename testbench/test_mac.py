@@ -36,17 +36,17 @@ class TB(object):
     return inum
 
   async def generate_stream(self, iter, n_word, n_frac) -> None:
-    await FallingEdge(self.dut.clk)
+    await RisingEdge(self.dut.clk)
     self.dut.ce.value = 1
     self.dut.sload.value = 0
     for i in range(iter):
       self.dut.A.value = self.__get_sample(n_word, n_frac)
       self.dut.B.value = self.__get_sample(n_word, n_frac)
-      await FallingEdge(self.dut.clk)
+      await RisingEdge(self.dut.clk)
     # self.dut.ce.value = 0
     self.dut.A.value = self.dut.B.value = 0
     self.dut.sload.value = 1
-    await FallingEdge(self.dut.clk)
+    await RisingEdge(self.dut.clk)
 
   async def reset(self) -> None:
     self.dut.arst_n.setimmediatevalue(1)
@@ -76,16 +76,26 @@ async def mac_test(dut):
 
 
 @pytest.mark.parametrize(
-  "n_width", ["8", "16", "32", "64"]
+  "n_width, q_width", [(8,6), (16,10), (32,30), (64,63)]
 )
-def test_start(n_width):
-  verilog_sources=[os.path.join(rtl_dir, "mac.v")]
+# @pytest.mark.parametrize(
+#   "q_width", ["0", "1"]
+# )
+def test_start(n_width, q_width):
+  verilog_sources=[
+    os.path.join(rtl_dir, "mac.v"),
+    os.path.join(rtl_dir, "DFF.v"),
+    os.path.join(rtl_dir, "mult.v"),
+    os.path.join(rtl_dir, "sum.v"),
+    os.path.join(rtl_dir, "round.v")
+  ]
   module = "test_mac"
   toplevel = "mac"
   parameters = {}
   # global N
   # N = int(n_width)
-  parameters['N'] = n_width
+  parameters['N_LEN'] = n_width
+  parameters['Q_LEN'] = q_width
   sim_build = os.path.join(tests_dir, "sim_build") + "_" + "_".join(("{}={}".format(*i) for i in parameters.items()))
   run(
     compile_args = ["-g2005"],
