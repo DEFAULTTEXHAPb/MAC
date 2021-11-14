@@ -9,15 +9,11 @@ from cocotb.triggers import RisingEdge, FallingEdge
 import pytest
 from cocotb_test.simulator import run
 
+# from mac_model import MACModel
+
 
 from fxpmath import Fxp
 
-# @pytest.fixture
-# def dut():
-#   return []
-
-tests_dir = os.path.dirname(__file__)
-rtl_dir = os.path.abspath(os.path.join(tests_dir, '..', 'rtl'))
 
 class TB(object):
   def __init__(self, dut) -> None:
@@ -30,7 +26,14 @@ class TB(object):
     cocotb.fork(Clock(self.dut.clk, 10, units="ns").start())
 
   def __get_sample(self, n, f) -> int:
-    num = Fxp(val=(-1)**(random.randint(0, 1))*(random.random()), signed=1, n_word=n, n_frac=f)
+    val=0.0
+    for i in range(n):
+      if (i < n-1):
+        val += random.randint(0, 1)*2**(-(f-i))
+      else:
+        val -= random.randint(0, 1)*2**(-(f-i))
+    # num = Fxp(val=(-1)**(random.randint(0, 1))*(random.random()), signed=1, n_word=n, n_frac=f)
+    num = Fxp(val=val, signed=1, n_word=n, n_frac=f)
     snum = num.base_repr(2)
     inum = int(snum, 2)
     return inum
@@ -60,28 +63,31 @@ async def mac_test(dut):
 #   cocotb.fork(Clock(dut.clk, 5, units='ns').start())
   tb = TB(dut)
   # N = int(os.environ.get("N", "8"))
-  N = len(dut.A)
+  # N = len(dut.A)
 
   await tb.reset()
 
-  await tb.generate_stream(iter=5, n_word=N, n_frac=N-1)
-  await tb.generate_stream(iter=5, n_word=N, n_frac=N-1)
+  NW = int(dut.N_LEN.value)
+  print("WORD LENGTH = ", NW)
+  QW = int(dut.Q_LEN.value)
+  print("FRACTIONAL LENGTH = ", QW)
+
+  await tb.generate_stream(iter=5, n_word=NW, n_frac=QW)
+  await tb.generate_stream(iter=5, n_word=NW, n_frac=QW)
 
   await RisingEdge(dut.clk)
   await RisingEdge(dut.clk)
 
-# factory = TestFactory(test_mac)
-# factory.generate_tests()
 
-
+tests_dir = os.path.dirname(__file__)
+rtl_dir = os.path.abspath(os.path.join(tests_dir, '..', 'rtl'))
 
 @pytest.mark.parametrize(
   "n_width, q_width", [(8,6), (16,10), (32,30), (64,63)]
 )
-# @pytest.mark.parametrize(
-#   "q_width", ["0", "1"]
-# )
 def test_start(n_width, q_width):
+  # global N
+  # global Q
   verilog_sources=[
     os.path.join(rtl_dir, "mac.v"),
     os.path.join(rtl_dir, "DFF.v"),
@@ -96,6 +102,8 @@ def test_start(n_width, q_width):
   # N = int(n_width)
   parameters['N_LEN'] = n_width
   parameters['Q_LEN'] = q_width
+  # N = n_width
+  # Q = q_width
   sim_build = os.path.join(tests_dir, "sim_build") + "_" + "_".join(("{}={}".format(*i) for i in parameters.items()))
   run(
     compile_args = ["-g2005"],
